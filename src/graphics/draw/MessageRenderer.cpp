@@ -38,6 +38,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // Additional includes for UI rendering
 #include "UIRenderer.h"
 #include "graphics/TimeFormatters.h"
+#include "utils/RTTTLValidator.h"
 
 // Additional includes for dependencies
 #include <string>
@@ -202,7 +203,15 @@ void drawTextMessageFrame(OLEDDisplay *display, OLEDDisplayUiState *state, int16
 
     // Check if we have more than an empty message to show
     char messageBuf[237];
-    snprintf(messageBuf, sizeof(messageBuf), "%s", msg);
+
+    // Clean the message to remove RTTTL content for display
+    char cleanedMsg[237];
+    if (RTTTLValidator::cleanMessageForDisplay(msg, cleanedMsg, sizeof(cleanedMsg))) {
+        snprintf(messageBuf, sizeof(messageBuf), "%s", cleanedMsg);
+    } else {
+        // Fallback to original message if cleaning failed
+        snprintf(messageBuf, sizeof(messageBuf), "%s", msg);
+    }
     if (strlen(messageBuf) == 0) {
         // === Header ===
         graphics::drawCommonHeader(display, x, y, titleStr);

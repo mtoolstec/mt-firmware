@@ -22,6 +22,7 @@
 #include "configuration.h"
 #include "main.h"
 #include "mesh/generated/meshtastic/rtttl.pb.h"
+#include "utils/RTTTLValidator.h"
 #include <Arduino.h>
 
 #ifdef HAS_NCP5623
@@ -190,7 +191,31 @@ int32_t ExternalNotificationModule::runOnce()
         if (moduleConfig.external_notification.use_i2s_as_buzzer) {
             if (audioThread->isPlaying()) {
                 // Continue playing
+            } else if (isBuzMessagePlaying) {
+                // Handle buz: message playback (independent of system nagging)
+                if (buzzerRepeatCount > 1 && buzzerCurrentRepeat < buzzerRepeatCount) {
+                    if (buzzerRepeatDelay > 0 && millis() < buzzerRepeatDelay) {
+                        // Still in delay period, wait
+                    } else if (buzzerRepeatDelay > 0) {
+                        // Delay period finished, start next repeat
+                        buzzerCurrentRepeat++;
+                        buzzerRepeatDelay = 0;
+                        audioThread->beginRttl(buzzerRtttlString, strlen(buzzerRtttlString));
+                        LOG_DEBUG("Buz RTTTL repeat %d/%d", buzzerCurrentRepeat, buzzerRepeatCount);
+                    } else {
+                        // Just finished playing, set delay for next repeat
+                        buzzerRepeatDelay = millis() + 1000; // 1 second delay
+                    }
+                } else {
+                    // All repeats completed, stop buz message playback
+                    isBuzMessagePlaying = false;
+                    buzzerRepeatCount = 0;
+                    buzzerCurrentRepeat = 0;
+                    buzzerRepeatDelay = 0;
+                    LOG_INFO("Buz message playback completed");
+                }
             } else if (isNagging && (nagCycleCutoff >= millis())) {
+                // System notification playback (only if not playing buz message)
                 audioThread->beginRttl(rtttlConfig.ringtone, strlen_P(rtttlConfig.ringtone));
             }
             // we need fast updates to play the RTTTL
@@ -201,8 +226,31 @@ int32_t ExternalNotificationModule::runOnce()
         if (moduleConfig.external_notification.use_pwm && config.device.buzzer_gpio && canBuzz()) {
             if (rtttl::isPlaying()) {
                 rtttl::play();
+            } else if (isBuzMessagePlaying) {
+                // Handle buz: message playback (independent of system nagging)
+                if (buzzerRepeatCount > 1 && buzzerCurrentRepeat < buzzerRepeatCount) {
+                    if (buzzerRepeatDelay > 0 && millis() < buzzerRepeatDelay) {
+                        // Still in delay period, wait
+                    } else if (buzzerRepeatDelay > 0) {
+                        // Delay period finished, start next repeat
+                        buzzerCurrentRepeat++;
+                        buzzerRepeatDelay = 0;
+                        rtttl::begin(config.device.buzzer_gpio, buzzerRtttlString);
+                        LOG_DEBUG("Buz RTTTL repeat %d/%d", buzzerCurrentRepeat, buzzerRepeatCount);
+                    } else {
+                        // Just finished playing, set delay for next repeat
+                        buzzerRepeatDelay = millis() + 1000; // 1 second delay
+                    }
+                } else {
+                    // All repeats completed, stop buz message playback
+                    isBuzMessagePlaying = false;
+                    buzzerRepeatCount = 0;
+                    buzzerCurrentRepeat = 0;
+                    buzzerRepeatDelay = 0;
+                    LOG_INFO("Buz message playback completed");
+                }
             } else if (isNagging && (nagCycleCutoff >= millis())) {
-                // start the song again if we have time left
+                // System notification playback (only if not playing buz message)
                 rtttl::begin(config.device.buzzer_gpio, rtttlConfig.ringtone);
             }
             // we need fast updates to play the RTTTL
@@ -335,6 +383,29 @@ void ExternalNotificationModule::stopNow()
 #endif
 }
 
+void ExternalNotificationModule::stopBuzMessage()
+{
+    // Stop RTTTL playback
+    rtttl::stop();
+#ifdef HAS_I2S
+    if (audioThread->isPlaying())
+        audioThread->stop();
+#endif
+
+    // Reset buz message state
+    isBuzMessagePlaying = false;
+    buzzerRepeatCount = 0;
+    buzzerCurrentRepeat = 0;
+    buzzerRepeatDelay = 0;
+
+    // Clear buzzer string
+    buzzerRtttlString[0] = '\0';
+
+    LOG_INFO("Buz message playback stopped by button press");
+
+    setIntervalFromNow(0);
+}
+
 ExternalNotificationModule::ExternalNotificationModule()
     : SinglePortModule("ExternalNotificationModule", meshtastic_PortNum_TEXT_MESSAGE_APP),
       concurrency::OSThread("ExternalNotification")
@@ -368,6 +439,9 @@ ExternalNotificationModule::ExternalNotificationModule()
 #if !defined(MESHTASTIC_EXCLUDE_INPUTBROKER)
         if (inputBroker) // put our callback in the inputObserver list
             inputObserver.observe(inputBroker);
+        LOG_INFO("ExternalNotificationModule: InputBroker connected for button handling");
+#else
+        LOG_WARN("ExternalNotificationModule: InputBroker is excluded - button press won't work");
 #endif
         if (nodeDB->loadProto(rtttlConfigFile, meshtastic_RTTTLConfig_size, sizeof(meshtastic_RTTTLConfig),
                               &meshtastic_RTTTLConfig_msg, &rtttlConfig) != LoadFileResult::LOAD_SUCCESS) {
@@ -449,8 +523,57 @@ ProcessMessage ExternalNotificationModule::handleReceived(const meshtastic_MeshP
         drv.go();
 #endif
         if (!isFromUs(&mp)) {
-            // Check if the message contains a bell character. Don't do this loop for every pin, just once.
+            // Check if the message starts with "buz:" and contains valid RTTTL
             auto &p = mp.decoded;
+
+            // Create null-terminated string from payload for easier processing
+            char messageText[p.payload.size + 1];
+            memcpy(messageText, p.payload.bytes, p.payload.size);
+            messageText[p.payload.size] = '\0';
+
+            // Check if message contains RTTTL format (old buz: or new Message:name:d=X... format)
+            char rtttlBuffer[256];
+            int playCount = 1;
+
+            bool parseResult = RTTTLValidator::parseBuzMessage(messageText, rtttlBuffer, sizeof(rtttlBuffer), &playCount);
+
+            if (parseResult) {
+                LOG_INFO("externalNotificationModule - Received RTTTL message, size=%d, content='%s'", (int)p.payload.size,
+                         messageText);
+
+                bool canBuzzResult = canBuzz();
+                LOG_INFO("externalNotificationModule - Parse result: %s, canBuzz: %s", parseResult ? "true" : "false",
+                         canBuzzResult ? "true" : "false");
+
+                if (canBuzzResult) {
+                    LOG_INFO("externalNotificationModule - Playing RTTTL from message %d times: %s", playCount, rtttlBuffer);
+
+                    // Store RTTTL and repeat information
+                    strncpy(buzzerRtttlString, rtttlBuffer, sizeof(buzzerRtttlString) - 1);
+                    buzzerRtttlString[sizeof(buzzerRtttlString) - 1] = '\0';
+                    buzzerRepeatCount = playCount;
+                    buzzerCurrentRepeat = 0;
+                    buzzerRepeatDelay = 0;
+
+                    // Set buz message playing flag and start time
+                    isBuzMessagePlaying = true;
+                    buzMessageStartTime = millis();
+
+                    // Start playing the first time
+                    startBuzzerRtttl();
+
+                    // Do NOT set isNagging or nagCycleCutoff for buz: messages
+                    // This allows buz: messages to play independently of system notifications
+
+                    setIntervalFromNow(0);           // run once so we know if we should do something
+                    return ProcessMessage::CONTINUE; // Let others look at this message also if they want
+                } else {
+                    LOG_WARN("externalNotificationModule - Invalid RTTTL format in buz: message. Original: %s, Extracted: %s",
+                             messageText + 4, rtttlBuffer);
+                }
+            }
+
+            // Check if the message contains a bell character. Don't do this loop for every pin, just once.
             bool containsBell = false;
             for (size_t i = 0; i < p.payload.size; i++) {
                 if (p.payload.bytes[i] == ASCII_BELL) {
@@ -632,9 +755,44 @@ void ExternalNotificationModule::handleSetRingtone(const char *from_msg)
 
 int ExternalNotificationModule::handleInputEvent(const InputEvent *event)
 {
+    // Handle button press to stop system notifications
     if (nagCycleCutoff != UINT32_MAX) {
         stopNow();
         return 1;
     }
+
+    // Handle button press to stop buz: message playback
+    if (isBuzMessagePlaying) {
+        LOG_INFO("Button press detected - stopping buz message playback");
+        stopBuzMessage();
+        return 1;
+    }
+
     return 0;
+}
+
+void ExternalNotificationModule::startBuzzerRtttl()
+{
+    if (buzzerRtttlString[0] == '\0') {
+        return; // No RTTTL string to play
+    }
+
+    buzzerCurrentRepeat = 1; // Start with the first play
+    buzzerRepeatDelay = 0;   // No initial delay
+
+    // Start playing immediately
+    if (!moduleConfig.external_notification.use_pwm && !moduleConfig.external_notification.use_i2s_as_buzzer) {
+        setExternalState(2, true);
+    } else {
+#ifdef HAS_I2S
+        if (moduleConfig.external_notification.use_i2s_as_buzzer) {
+            audioThread->beginRttl(buzzerRtttlString, strlen(buzzerRtttlString));
+        } else
+#endif
+            if (moduleConfig.external_notification.use_pwm) {
+            rtttl::begin(config.device.buzzer_gpio, buzzerRtttlString);
+        }
+    }
+
+    LOG_DEBUG("Started RTTTL play 1/%d: %s", buzzerRepeatCount, buzzerRtttlString);
 }

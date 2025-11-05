@@ -51,6 +51,10 @@ class ExternalNotificationModule : public SinglePortModule, private concurrency:
 
     void stopNow();
 
+    void stopBuzMessage();
+
+    void startBuzzerRtttl();
+
     void handleGetRingtone(const meshtastic_MeshPacket &req, meshtastic_AdminMessage *response);
     void handleSetRingtone(const char *from_msg);
 
@@ -68,6 +72,14 @@ class ExternalNotificationModule : public SinglePortModule, private concurrency:
     bool isNagging = false;
 
     bool isSilenced = false;
+
+    // RTTTL repeat functionality
+    int buzzerRepeatCount = 0;
+    int buzzerCurrentRepeat = 0;
+    uint32_t buzzerRepeatDelay = 0;
+    char buzzerRtttlString[256] = {0};
+    bool isBuzMessagePlaying = false;
+    uint32_t buzMessageStartTime = 0;
 
     virtual AdminMessageHandleResult handleAdminMessageForModule(const meshtastic_MeshPacket &mp,
                                                                  meshtastic_AdminMessage *request,

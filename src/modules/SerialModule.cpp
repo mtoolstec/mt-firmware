@@ -6,6 +6,7 @@
 #include "RTC.h"
 #include "Router.h"
 #include "configuration.h"
+#include "utils/RTTTLValidator.h"
 #include <Arduino.h>
 #include <Throttle.h>
 
@@ -395,8 +396,16 @@ ProcessMessage SerialModuleRadio::handleReceived(const meshtastic_MeshPacket &mp
             } else if (moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_TEXTMSG) {
                 meshtastic_NodeInfoLite *node = nodeDB->getMeshNode(getFrom(&mp));
                 const char *sender = (node && node->has_user) ? node->user.short_name : "???";
+
+                // Clean the message to remove RTTTL content for serial output
+                char cleanedMsg[256];
+                const char *msgToDisplay = (const char *)p.payload.bytes;
+                if (RTTTLValidator::cleanMessageForDisplay(msgToDisplay, cleanedMsg, sizeof(cleanedMsg))) {
+                    msgToDisplay = cleanedMsg;
+                }
+
                 serialPrint->println();
-                serialPrint->printf("%s: %s", sender, p.payload.bytes);
+                serialPrint->printf("%s: %s", sender, msgToDisplay);
                 serialPrint->println();
             } else if ((moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_NMEA ||
                         moduleConfig.serial.mode == meshtastic_ModuleConfig_SerialConfig_Serial_Mode_CALTOPO) &&

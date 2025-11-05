@@ -48,7 +48,7 @@ class RotaryEncoderInterruptBase : public Observable<const InputEvent *>, public
     bool pressDetected = false;
     uint32_t lastPressLongEventTime = 0;
     unsigned long lastPressKeyTime = 0;
-    static const uint32_t LONG_PRESS_DURATION = 300;      // ms
+    static const uint32_t LONG_PRESS_DURATION = 200;      // ms
     static const uint32_t LONG_PRESS_REPEAT_INTERVAL = 0; // 0 = single-shot for rotary select
-    const unsigned long pressDebounceMs = 200;            // ms
+    const unsigned long pressDebounceMs = 150;            // ms
 };
