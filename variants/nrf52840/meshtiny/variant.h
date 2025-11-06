@@ -23,6 +23,13 @@
 #define MESHTINY
 #endif
 
+#ifdef MESHTASTIC_EXCLUDE_INPUTBROKER
+#undef MESHTASTIC_EXCLUDE_INPUTBROKER
+#endif
+
+// Enable button support
+#define HAS_BUTTON 1
+
 /** Master clock frequency */
 #define VARIANT_MCK (64000000ul)
 
