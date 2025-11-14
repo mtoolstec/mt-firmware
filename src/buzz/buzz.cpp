@@ -28,7 +28,12 @@ struct ToneDuration {
 #define NOTE_A3 220
 #define NOTE_AS3 233
 #define NOTE_B3 247
+#define NOTE_C4 262
 #define NOTE_CS4 277
+#define NOTE_D4 294
+#define NOTE_E4 330
+#define NOTE_F4 349
+#define NOTE_G4 392
 
 const int DURATION_1_8 = 125;  // 1/8 note
 const int DURATION_1_4 = 250;  // 1/4 note
@@ -163,5 +168,51 @@ void playComboTune()
         {NOTE_CS4, 60}, // Quick trill up
         {NOTE_B3, 120}  // Ending chirp
     };
+    playTones(melody, sizeof(melody) / sizeof(ToneDuration));
+}
+
+void playCannedModeStart()
+{
+    ToneDuration melody[] = {{NOTE_C3, 100}, {NOTE_E3, 100}, {NOTE_G3, 150}};
+    playTones(melody, sizeof(melody) / sizeof(ToneDuration));
+}
+
+void playCannedModeExit()
+{
+    ToneDuration melody[] = {{NOTE_G3, 100}, {NOTE_E3, 100}, {NOTE_C3, 100}};
+    playTones(melody, sizeof(melody) / sizeof(ToneDuration));
+}
+
+void playBinaryIndexTone(uint8_t index)
+{
+    // Play a 3-bit binary representation (MSB -> LSB) of index (0..7)
+    // Dot (short) = 50ms, Dash (long) = 150ms, gap between elements = 100ms (拉长间隙)
+    if (config.device.buzzer_mode == meshtastic_Config_DeviceConfig_BuzzerMode_DISABLED ||
+        config.device.buzzer_mode == meshtastic_Config_DeviceConfig_BuzzerMode_NOTIFICATIONS_ONLY) {
+        return;
+    }
+#ifdef PIN_BUZZER
+    if (!config.device.buzzer_gpio)
+        config.device.buzzer_gpio = PIN_BUZZER;
+#endif
+    if (!config.device.buzzer_gpio)
+        return;
+
+    const int freq = NOTE_C4;
+    const int dotDur = 70;
+    const int dashDur = 230;
+    const int gap = 130;
+
+    for (int bit = 2; bit >= 0; --bit) {
+        bool set = (index >> bit) & 0x1;
+        int dur = set ? dashDur : dotDur;
+        tone(config.device.buzzer_gpio, freq, dur);
+        delay(dur + gap);
+    }
+}
+
+void playCannedMessageSentTone()
+{
+    ToneDuration melody[] = {{NOTE_G3, 70}, {NOTE_B3, 90}, {NOTE_D4, 110}, {NOTE_G4, 170}};
     playTones(melody, sizeof(melody) / sizeof(ToneDuration));
 }

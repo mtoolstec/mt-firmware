@@ -28,7 +28,11 @@
 #include "modules/AtakPluginModule.h"
 #endif
 #if !MESHTASTIC_EXCLUDE_CANNEDMESSAGES
+#if HAS_SCREEN
 #include "modules/CannedMessageModule.h"
+#else
+#include "modules/HeadlessCannedMessageModule.h"
+#endif
 #endif
 #if !MESHTASTIC_EXCLUDE_DETECTIONSENSOR
 #include "modules/DetectionSensorModule.h"
@@ -229,10 +233,16 @@ void setupModules()
 #ifdef INPUTBROKER_EXPRESSLRSFIVEWAY_TYPE
     expressLRSFiveWayInput = new ExpressLRSFiveWay();
 #endif
-#if HAS_SCREEN && !MESHTASTIC_EXCLUDE_CANNEDMESSAGES
+#if !MESHTASTIC_EXCLUDE_CANNEDMESSAGES
+#if HAS_SCREEN
     if (config.display.displaymode != meshtastic_Config_DisplayConfig_DisplayMode_COLOR) {
         cannedMessageModule = new CannedMessageModule();
     }
+#else
+#ifdef TRACKER_T1000_E
+    headlessCannedMessageModule = new HeadlessCannedMessageModule();
+#endif
+#endif
 #endif
 #if ARCH_PORTDUINO
     new HostMetricsModule();

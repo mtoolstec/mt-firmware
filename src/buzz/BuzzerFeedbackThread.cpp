@@ -3,6 +3,10 @@
 #include "buzz.h"
 #include "configuration.h"
 
+#if !HAS_SCREEN && !MESHTASTIC_EXCLUDE_CANNEDMESSAGES
+#include "modules/HeadlessCannedMessageModule.h"
+#endif
+
 BuzzerFeedbackThread *buzzerFeedbackThread;
 
 BuzzerFeedbackThread::BuzzerFeedbackThread()
@@ -26,7 +30,13 @@ int BuzzerFeedbackThread::handleInputEvent(const InputEvent *event)
     case INPUT_BROKER_ALT_PRESS:
     case INPUT_BROKER_SELECT:
     case INPUT_BROKER_SELECT_LONG:
+#if !HAS_SCREEN && !MESHTASTIC_EXCLUDE_CANNEDMESSAGES
+        if (!headlessCannedMessageModule || !headlessCannedMessageModule->isSelecting()) {
+            playBeep(); // Confirmation feedback
+        }
+#else
         playBeep(); // Confirmation feedback
+#endif
         break;
 
     case INPUT_BROKER_UP:

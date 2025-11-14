@@ -1116,11 +1116,20 @@ void setup()
             mainDelay.interruptFromISR(&higherWake);
         };
         userConfigNoScreen.singlePress = INPUT_BROKER_USER_PRESS;
+#ifdef TRACKER_T1000_E
+        userConfigNoScreen.longPressTime = 1200;
+        userConfigNoScreen.longLongPress = INPUT_BROKER_SHUTDOWN;
+        userConfigNoScreen.longLongPressTime = 5000;
+        userConfigNoScreen.doublePress = INPUT_BROKER_HEADLESS_CANNED_MODE;
+        userConfigNoScreen.triplePress = INPUT_BROKER_GPS_TOGGLE;
+        userConfigNoScreen.longPress = INPUT_BROKER_HEADLESS_CANNED_SEND;
+#else
         userConfigNoScreen.longPress = INPUT_BROKER_NONE;
         userConfigNoScreen.longPressTime = 500;
         userConfigNoScreen.longLongPress = INPUT_BROKER_SHUTDOWN;
         userConfigNoScreen.doublePress = INPUT_BROKER_SEND_PING;
         userConfigNoScreen.triplePress = INPUT_BROKER_GPS_TOGGLE;
+#endif
         UserButtonThread->initButton(userConfigNoScreen);
     }
 #endif

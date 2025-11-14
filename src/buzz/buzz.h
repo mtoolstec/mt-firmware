@@ -12,3 +12,7 @@ void playChirp();
 void playLongPressLeadUp();
 bool playNextLeadUpNote();  // Play the next note in the lead-up sequence
 void resetLeadUpSequence(); // Reset the lead-up sequence to start from beginning
+void playCannedModeStart();
+void playCannedModeExit();
+void playCannedMessageSentTone();
+void playBinaryIndexTone(uint8_t index);

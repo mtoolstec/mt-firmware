@@ -12,6 +12,9 @@
 #include "main.h"
 #include "modules/CannedMessageModule.h"
 #include "modules/ExternalNotificationModule.h"
+#if !HAS_SCREEN && !MESHTASTIC_EXCLUDE_CANNEDMESSAGES
+#include "modules/HeadlessCannedMessageModule.h"
+#endif
 #include "power.h"
 #include "sleep.h"
 #ifdef ARCH_PORTDUINO
@@ -219,11 +222,24 @@ int32_t ButtonThread::runOnce()
 
             // Reset combination tracking
             waitingForLongPress = false;
+#if !HAS_SCREEN && !MESHTASTIC_EXCLUDE_CANNEDMESSAGES
+            bool suppressComboTune = false;
+            bool selectingBefore = headlessCannedMessageModule && headlessCannedMessageModule->isSelecting();
+#endif
 
             evt.inputEvent = _doublePress;
             // evt.kbchar = _doublePress;
             this->notifyObservers(&evt);
+
+#if !HAS_SCREEN && !MESHTASTIC_EXCLUDE_CANNEDMESSAGES
+            bool selectingAfter = headlessCannedMessageModule && headlessCannedMessageModule->isSelecting();
+            suppressComboTune = headlessCannedMessageModule && (selectingBefore || selectingAfter);
+            if (!suppressComboTune) {
+                playComboTune();
+            }
+#else
             playComboTune();
+#endif
 
             break;
         }
@@ -235,12 +251,27 @@ int32_t ButtonThread::runOnce()
             waitingForLongPress = false;
 
             switch (multipressClickCount) {
-            case 3:
+            case 3: {
+#if !HAS_SCREEN && !MESHTASTIC_EXCLUDE_CANNEDMESSAGES
+                bool suppressComboTune = false;
+                bool selectingBefore = headlessCannedMessageModule && headlessCannedMessageModule->isSelecting();
+#endif
+
                 evt.inputEvent = _triplePress;
                 // evt.kbchar = _triplePress;
                 this->notifyObservers(&evt);
+
+#if !HAS_SCREEN && !MESHTASTIC_EXCLUDE_CANNEDMESSAGES
+                bool selectingAfter = headlessCannedMessageModule && headlessCannedMessageModule->isSelecting();
+                suppressComboTune = headlessCannedMessageModule && (selectingBefore || selectingAfter);
+                if (!suppressComboTune) {
+                    playComboTune();
+                }
+#else
                 playComboTune();
+#endif
                 break;
+            }
 
             // No valid multipress action
             default:
