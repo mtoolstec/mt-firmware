@@ -433,12 +433,15 @@ void Screen::handleSetOn(bool on, FrameCallback einkScreensaver)
             PMU->enablePowerOutput(XPOWERS_ALDO2);
 #endif
 
-#if defined(MUZI_BASE)
+// some screens seem to need a kick in the pants to turn back on
+#if defined(MUZI_BASE) || defined(M5STACK_CARDPUTER_ADV)
             dispdev->init();
             dispdev->setBrightness(brightness);
             dispdev->flipScreenVertically();
             dispdev->resetDisplay();
+#ifdef SCREEN_12V_ENABLE
             digitalWrite(SCREEN_12V_ENABLE, HIGH);
+#endif
             delay(100);
 #endif
 #if !ARCH_PORTDUINO
@@ -462,9 +465,11 @@ void Screen::handleSetOn(bool on, FrameCallback einkScreensaver)
 #if defined(HELTEC_TRACKER_V1_X) || defined(HELTEC_WIRELESS_TRACKER_V2)
             ui->init();
 #endif
-#ifdef USE_ST7789
+#if defined(USE_ST7789) && defined(VTFT_LEDA)
+#ifdef VTFT_CTRL
             pinMode(VTFT_CTRL, OUTPUT);
             digitalWrite(VTFT_CTRL, LOW);
+#endif
             ui->init();
 #ifdef ESP_PLATFORM
             analogWrite(VTFT_LEDA, BRIGHTNESS_DEFAULT);
@@ -506,8 +511,12 @@ void Screen::handleSetOn(bool on, FrameCallback einkScreensaver)
 #ifdef USE_ST7789
             SPI1.end();
 #if defined(ARCH_ESP32)
+#ifdef VTFT_LEDA
             pinMode(VTFT_LEDA, ANALOG);
+#endif
+#ifdef VTFT_CTRL
             pinMode(VTFT_CTRL, ANALOG);
+#endif
             pinMode(ST7789_RESET, ANALOG);
             pinMode(ST7789_RS, ANALOG);
             pinMode(ST7789_NSS, ANALOG);
@@ -875,6 +884,10 @@ int32_t Screen::runOnce()
             break;
         case Cmd::STOP_ALERT_FRAME:
             NotificationRenderer::pauseBanner = false;
+            // Return from one-off alert mode back to regular frames.
+            if (!showingNormalScreen && NotificationRenderer::current_notification_type != notificationTypeEnum::text_input) {
+                setFrames();
+            }
             break;
         case Cmd::STOP_BOOT_SCREEN:
             EINK_ADD_FRAMEFLAG(dispdev, COSMETIC); // E-Ink: Explicitly use full-refresh for next frame
@@ -1731,6 +1744,26 @@ int Screen::handleInputEvent(const InputEvent *event)
                 showFrame(FrameDirection::PREVIOUS);
             } else if (event->inputEvent == INPUT_BROKER_RIGHT || event->inputEvent == INPUT_BROKER_USER_PRESS) {
                 showFrame(FrameDirection::NEXT);
+            } else if (event->inputEvent == INPUT_BROKER_FN_F1) {
+                this->ui->switchToFrame(0);
+                lastScreenTransition = millis();
+                setFastFramerate();
+            } else if (event->inputEvent == INPUT_BROKER_FN_F2) {
+                this->ui->switchToFrame(1);
+                lastScreenTransition = millis();
+                setFastFramerate();
+            } else if (event->inputEvent == INPUT_BROKER_FN_F3) {
+                this->ui->switchToFrame(2);
+                lastScreenTransition = millis();
+                setFastFramerate();
+            } else if (event->inputEvent == INPUT_BROKER_FN_F4) {
+                this->ui->switchToFrame(3);
+                lastScreenTransition = millis();
+                setFastFramerate();
+            } else if (event->inputEvent == INPUT_BROKER_FN_F5) {
+                this->ui->switchToFrame(4);
+                lastScreenTransition = millis();
+                setFastFramerate();
             } else if (event->inputEvent == INPUT_BROKER_UP_LONG) {
                 // Long press up button for fast frame switching
                 showPrevFrame();
