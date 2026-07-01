@@ -16,7 +16,7 @@ jobs:
     runs-on: macos-${{ inputs.macos_ver }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -24,7 +24,7 @@ jobs:
         shell: bash
         run: |
           brew update
-          brew install platformio yaml-cpp libuv openssl@3 libusb argp-standalone pkg-config
+          brew install platformio yaml-cpp libuv openssl@3 libusb argp-standalone pkg-config ulfius
 
       - name: Get release version string
         run: |
