@@ -4,8 +4,8 @@
 
 namespace
 {
-constexpr uint8_t rows = 5;
-constexpr uint8_t columns = 3;
+constexpr uint8_t matrixRows = 5;
+constexpr uint8_t matrixColumns = 3;
 constexpr uint32_t multiTapMs = 750;
 constexpr uint32_t longPressMs = 2000;
 
@@ -24,7 +24,7 @@ constexpr char keyMap[12][9] = {{',', '.', '!', '?', '<', '>', '1'},
 constexpr uint8_t keyLengths[12] = {7, 7, 7, 7, 7, 7, 9, 7, 9, 2, 2, 2};
 } // namespace
 
-GAT562T9Keyboard::GAT562T9Keyboard() : TCA8418KeyboardBase(rows, columns) {}
+GAT562T9Keyboard::GAT562T9Keyboard() : TCA8418KeyboardBase(matrixRows, matrixColumns) {}
 
 void GAT562T9Keyboard::pressed(uint8_t key)
 {
@@ -34,11 +34,11 @@ void GAT562T9Keyboard::pressed(uint8_t key)
 
     const uint8_t row = (key - 1) / 10;
     const uint8_t column = (key - 1) % 10;
-    if (row >= rows || row == 3 || column >= columns) {
+    if (row >= matrixRows || row == 3 || column >= matrixColumns) {
         return;
     }
 
-    const uint8_t index = (row < 3 ? row : 3) * columns + column;
+    const uint8_t index = (row < 3 ? row : 3) * matrixColumns + column;
     const uint32_t now = millis();
     replacePrevious = index == lastKey && now - lastTap < multiTapMs;
     charIndex = replacePrevious ? charIndex + 1 : 0;
