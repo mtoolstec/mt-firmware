@@ -60,6 +60,10 @@ ButtonThread *BackButtonThread = nullptr;
 ButtonThread *CancelButtonThread = nullptr;
 #endif
 
+#if defined(GAT562_DEL_PIN)
+ButtonThread *GAT562DelButtonThread = nullptr;
+#endif
+
 #if defined(DOWN_BUTTON_PIN)
 ButtonThread *DownButtonThread = nullptr;
 #endif
@@ -304,6 +308,25 @@ void InputBroker::Init()
     cancelConfig.longPress = INPUT_BROKER_SHUTDOWN;
     cancelConfig.longPressTime = 4000;
     CancelButtonThread->initButton(cancelConfig);
+#endif
+
+#if defined(GAT562_DEL_PIN)
+    GAT562DelButtonThread = new ButtonThread("GAT562DelButton");
+    ButtonConfig delConfig;
+    delConfig.pinNumber = GAT562_DEL_PIN;
+    delConfig.activeLow = true;
+    delConfig.activePullup = true;
+    delConfig.intRoutine = []() {
+        GAT562DelButtonThread->userButton.tick();
+        GAT562DelButtonThread->setIntervalFromNow(0);
+        runASAP = true;
+        BaseType_t higherWake = 0;
+        concurrency::mainDelay.interruptFromISR(&higherWake);
+    };
+    delConfig.singlePress = INPUT_BROKER_BACK;
+    delConfig.longPress = INPUT_BROKER_CANCEL;
+    delConfig.longPressTime = 2000;
+    GAT562DelButtonThread->initButton(delConfig);
 #endif
 
 #if defined(ALT_BUTTON_PIN)

@@ -166,8 +166,10 @@ static const uint8_t SCK = PIN_SPI_SCK;
 #define PIN_QSPI_IO3 2
 
 // On-board QSPI Flash
+#if !defined(GAT562_DISABLE_EXTERNAL_FLASH)
 #define EXTERNAL_FLASH_DEVICES IS25LP080D
 #define EXTERNAL_FLASH_USE_QSPI
+#endif
 
 /* @note RAK5005-O GPIO mapping to RAK4631 GPIO ports
    RAK5005-O <->  nRF52840
