@@ -62,10 +62,13 @@ bool XModemAdapter::isValidFilename(const char *name)
 {
     if (!name || name[0] == '\0')
         return false;
+    const bool driveLetter = (name[0] >= 'A' && name[0] <= 'Z') || (name[0] >= 'a' && name[0] <= 'z');
+    if (driveLetter && name[1] == ':')
+        return false;
     // Reject any ".." path component. Absolute paths and subdirectories are fine; they stay within
     // the filesystem root, so only traversal out of it needs blocking.
     for (const char *seg = name; *seg;) {
-        const char *slash = strchr(seg, '/');
+        const char *slash = strpbrk(seg, "/\\");
         const size_t len = slash ? (size_t)(slash - seg) : strlen(seg);
         if (len == 2 && seg[0] == '.' && seg[1] == '.')
             return false;
@@ -121,7 +124,7 @@ void XModemAdapter::sendControl(meshtastic_XModem_Control c)
     packetReady.notifyObservers(packetno);
 }
 
-meshtastic_XModem XModemAdapter::getForPhone()
+const meshtastic_XModem &XModemAdapter::getForPhone() const
 {
     return xmodemStore;
 }
@@ -217,6 +220,9 @@ void XModemAdapter::handlePacket(meshtastic_XModem xmodemPacket)
             } else if (isTransmitting) {
                 // just received something weird.
                 sendControl(meshtastic_XModem_Control_CAN);
+                spiLock->lock();
+                file.close();
+                spiLock->unlock();
                 isTransmitting = false;
                 break;
             }
