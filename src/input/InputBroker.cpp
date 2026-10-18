@@ -116,6 +116,12 @@ void InputBroker::processInputEventQueue()
 
 int InputBroker::handleInputEvent(const InputEvent *event)
 {
+#if defined(GAT562_T9_KEYBOARD) && HAS_SCREEN
+    if (event && event->inputEvent == INPUT_BROKER_USER_PRESS && screen && screen->isScreenOn()) {
+        screen->setOn(false);
+        return 0;
+    }
+#endif
 #if HAS_SCREEN
     bool screenWasOff = false;
     if (screen) {
