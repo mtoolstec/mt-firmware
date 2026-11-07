@@ -1829,6 +1829,13 @@ GnssModel_t GPS::probe(int serialSpeed)
         // Check that the returned response class and message ID are correct
         GPS_RESPONSE response = getACK(0x06, 0x08, 750);
         if (response == GNSS_RESPONSE_NONE) {
+#ifdef GAT562_T9_KEYBOARD
+            if (sawNmeaSentenceAtBaud(_serial_gps, 1500)) {
+                LOG_INFO("NMEA-only GPS detected at %d baud", serialSpeed);
+                currentStep = 0;
+                return GNSS_MODEL_GENERIC_NMEA;
+            }
+#endif
             LOG_WARN("No GNSS Module (baudrate %d)", serialSpeed);
             currentDelay = 2000;
             currentStep = 0;
@@ -1985,6 +1992,12 @@ std::unique_ptr<GPS> GPS::createGps()
 #if defined(PIN_GPS_EN)
     if (!_en_gpio)
         _en_gpio = PIN_GPS_EN;
+#endif
+#ifdef GPS_SHARED_POWER_PIN
+    if (_en_gpio == GPS_SHARED_POWER_PIN) {
+        LOG_WARN("GPS enable GPIO %d controls shared peripheral power; ignoring", _en_gpio);
+        _en_gpio = 0;
+    }
 #endif
 #ifdef ARCH_PORTDUINO
     if (portduino_config.has_gps) {

@@ -2942,6 +2942,9 @@ void NodeDB::loadFromDisk()
     if (moduleConfig.version < POSITION_TELEMETRY_OPTIN_VER) {
         LOG_INFO("Opt-in migration: forcing device telemetry broadcast to opt-in");
         optInDisableTelemetryBroadcast(moduleConfig);
+#ifdef USERPREFS_CONFIG_ENVIRONMENT_MEASUREMENT_ENABLED
+        moduleConfig.telemetry.environment_measurement_enabled = USERPREFS_CONFIG_ENVIRONMENT_MEASUREMENT_ENABLED;
+#endif
         moduleConfig.version = POSITION_TELEMETRY_OPTIN_VER;
         saveToDisk(SEGMENT_MODULECONFIG);
     }

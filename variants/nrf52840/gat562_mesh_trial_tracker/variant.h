@@ -236,6 +236,7 @@ SO GPIO 39/TXEN MAY NOT BE DEFINED FOR SUCCESSFUL OPERATION OF THE SX1262 - TG
 // enables 3.3V periphery like GPS or IO Module
 // Do not toggle this for GPS power savings
 #define PIN_3V3_EN (34)
+#define GPS_SHARED_POWER_PIN PIN_3V3_EN
 
 // RAK1910 GPS module
 // If using the wisblock GPS module and pluged into Port A on WisBlock base
