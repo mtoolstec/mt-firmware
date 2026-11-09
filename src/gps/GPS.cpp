@@ -1829,7 +1829,7 @@ GnssModel_t GPS::probe(int serialSpeed)
         // Check that the returned response class and message ID are correct
         GPS_RESPONSE response = getACK(0x06, 0x08, 750);
         if (response == GNSS_RESPONSE_NONE) {
-#ifdef GAT562_T9_KEYBOARD
+#if defined(GAT562_MESH_TRIAL_TRACKER) || defined(GAT562_MESH_TRACKER_PRO) || defined(GAT562_MESH_EVB_PRO)
             if (sawNmeaSentenceAtBaud(_serial_gps, 1500)) {
                 LOG_INFO("NMEA-only GPS detected at %d baud", serialSpeed);
                 currentStep = 0;
